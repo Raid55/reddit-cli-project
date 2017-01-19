@@ -31,7 +31,7 @@ function makeTopicList(subred){
   })
   .then(function(res){
     articleList.push(new inquirer.Separator())
-    articleList.push({name: 'Next Page' ,value: "lawl"})
+    articleList.push({name: 'Next Page' ,value: nextPage})
     articleList.push(new inquirer.Separator())
     return res
   })
@@ -43,7 +43,9 @@ function makeTopicList(subred){
       choices: articleList
     })
     .then(function(res) {
-        // console.log('im here', res.articles)
+        if(res.articles == nextPage){
+          res.articles(nextP)
+        }
         return fetchRed.getArticle(res.articles)
     })
     .then(function(res){
@@ -61,7 +63,15 @@ function makeTopicList(subred){
         console.log(res[0].url)
         console.log(`=============================================================================`)
       }else{
+        var table = new Table({
+            head: ['Username/Votes',res[0].title]
+          , colWidths: [30,125]
+        });
+        table.push(
+            [res[0].author+'/'+res[0].score, res[0].selftext]
+        );
         console.log(res[0].selftext)
+        console.log(table.toString());
       }
     })
     .then(function(res){
@@ -100,7 +110,7 @@ function makeTopicListforHome(){
   })
   .then(function(res){
     articleList.push(new inquirer.Separator())
-    articleList.push({name: 'Next Page' ,value: "lawl"})
+    articleList.push({name: 'Next Page' ,value: nextPage})
     articleList.push(new inquirer.Separator())
     return res
   })
@@ -112,7 +122,9 @@ function makeTopicListforHome(){
       choices: articleList
     })
     .then(function(res) {
-        // console.log('im here', res.articles)
+        if(res.articles == nextPage){
+          res.articles(nextP)
+        }
         return fetchRed.getArticle(res.articles)
     })
     .then(function(res){
@@ -130,7 +142,15 @@ function makeTopicListforHome(){
         console.log(res[0].url)
         console.log(`=============================================================================`)
       }else{
+        var table = new Table({
+            head: ['Username/Votes',res[0].title]
+          , colWidths: [20,115]
+        });
+        table.push(
+            [res[0].author+'/'+res[0].score, res[0].selftext]
+        );
         console.log(res[0].selftext)
+        console.log(table.toString());
       }
     })
     .then(function(res){
@@ -151,10 +171,85 @@ function makeTopicListforHome(){
   })
 }
 
-function page(pageid){
+function nextPage(pageid){
+  var articleList;
+  var nextP;
   fetchRed.nextPage(pageid)
-  .then
+  .then(function(res){
+    nextP = res.data.after
+    articleList = res.data.children.reduce(function(accu,el,indx){
+      accu.push({name: el.data.title ,value: el.data.permalink})
+      return accu;
+    },[])
+    return res
+  })
+  .then(function(res){
+    articleList.push(new inquirer.Separator())
+    articleList.push({name: 'Next Page' ,value: nextPage})
+    articleList.push(new inquirer.Separator())
+    return res
+  })
+  .then(function(res){
+    inquirer.prompt({
+      type: 'list',
+      name: 'articles',
+      message: 'Which artile do you wish to read?',
+      choices: articleList
+    })
+    .then(function(res) {
+        if(res.articles == nextPage){
+          res.articles(nextP)
+        }
+        return fetchRed.getArticle(res.articles)
+    })
+    .then(function(res){
+      return res.reduce(function(accu,el,indx){
+        if(indx === 0){
+          accu.push(el.data.children[0].data)
+        }
+        return accu
+      },[])
+    })
+    .then(function(res){
+      if(res[0].post_hint){
+        console.log(`=============================================================================`)
+        console.log('it was an image, images arent suported yet... or a link which is: ')
+        console.log(res[0].url)
+        console.log(`=============================================================================`)
+      }else{
+        var table = new Table({
+            head: ['Username/Votes',res[0].title]
+          , colWidths: [20,115]
+        });
+        table.push(
+            [res[0].author+'/'+res[0].score, res[0].selftext]
+        );
+        console.log(res[0].selftext)
+        console.log(table.toString());
+      }
+    })
+    .then(function(res){
+      inquirer.prompt({
+        type: 'list',
+        name: 'next',
+        message: 'What now?',
+        choices: whatNext
+      })
+      .then(function(res){
+        if(res.next == startOver){
+          res.next()
+        }else{
+          res.next(articleList,nextP)
+        }
+      })
+    })
+  })
+  .catch(function(err){
+    console.log('Error 55', err)
+    startOver()
+  })
 }
+
 
 function goBack(articlArray,pageid){
   var articleList = articlArray;
@@ -166,7 +261,9 @@ function goBack(articlArray,pageid){
     choices: articleList
   })
   .then(function(res) {
-      // console.log('im here', res.articles)
+      if(res.articles == nextPage){
+        res.articles(nextP)
+      }
       return fetchRed.getArticle(res.articles)
   })
   .then(function(res){
@@ -184,7 +281,15 @@ function goBack(articlArray,pageid){
       console.log(res[0].url)
       console.log(`=============================================================================`)
     }else{
+      var table = new Table({
+          head: ['Username/Votes',res[0].title]
+        , colWidths: [20,115]
+      });
+      table.push(
+          [res[0].author+'/'+res[0].score, res[0].selftext]
+      );
       console.log(res[0].selftext)
+      console.log(table.toString());
     }
   })
   .then(function(res){
