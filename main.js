@@ -48,12 +48,14 @@ function displayArticle(res){
     console.log(res[0].url)
     console.log(`=============================================================================`)
   }else{
+    var cols = 125;
     var table = new Table({
-        head: ['Username/Votes',res[0].title]
-      , colWidths: [30,125]
+        head: ['Username / Votes',res[0].title]
+      , colWidths: [30, cols]
     });
+    var formattedText = formatToXCols(res[0].selftext)
     table.push(
-        [res[0].author+' / '+res[0].score, res[0].selftext]
+        [res[0].author+' / '+res[0].score, formattedText]
     );
     console.log(res[0].selftext)
     console.log(table.toString());
@@ -102,7 +104,22 @@ function askWhatArticleToReadAndWhatDoNext(res){
 //   return result;
 // }
 
-
+function formatToXCols(text) {
+  var count = 0;
+  var newStr = ""
+  for(var i=0; i<text.length; i++, count++) {
+    if(text.charAt(i) === "\n" ) {
+      count = 0;
+    }
+    if(count === 118) {
+      newStr += '\n';
+      count = 0;
+    }
+    newStr += text.charAt(i)
+  }
+  return newStr
+}
+//////////////////////////////////////////////////////////////////////
 
 function makeTopicList(subred){
   var articleList;
@@ -202,6 +219,25 @@ function askForCustomSub(){
   );
 }
 
+function favList(){
+  var favredditlist = [
+    {name: 'Global Offensive', value: '/r/GlobalOffensive/'},
+    {name: 'BROKEN', value: 'lol'},
+  ];
+  inquirer.prompt({
+    type: 'list',
+    name: 'fav',
+    message: 'Which one will it be today?',
+    choices: favredditlist
+  })
+  .then(
+    function(res) {
+      console.log(res.fav)
+      makeTopicList(res.fav)
+    }
+  );
+}
+
 
 ////////////////////////////////////////////////////////////////
 
@@ -222,7 +258,8 @@ var whatNext = [
 var start = [
   {name: 'Show homepage', value: makeTopicListforHome},
   {name: 'Custom subreddit', value: askForCustomSub},
-  {name: 'List subreddits', value: makeSubredditInq}
+  {name: 'List subreddits', value: makeSubredditInq},
+  {name: 'My subredits', value: favList}
 ];
 
 function startOver(){
