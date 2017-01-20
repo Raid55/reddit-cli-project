@@ -2,7 +2,6 @@ var inquirer = require('inquirer');
 var fetchRed = require('./lib/reddit.js');
 var Table = require('cli-table');
 var fs = require('fs');
-var edit = require('./redditFSedditor.js')
 
 /*
 .catch(function(err){
@@ -13,6 +12,7 @@ var edit = require('./redditFSedditor.js')
 //small process functions...
 function getTitlesAndPermalinks(res){
   nextP = res.data.after
+  beforeP = res.data.before
   articleList = res.data.children.reduce(function(accu,el,indx){
     accu.push({name: el.data.title ,value: el.data.permalink})
     return accu;
@@ -29,12 +29,13 @@ function pushArticlesToList(res){
 
 function checkIfArticleAndPassAlong(res) {
     if(res.articles == nextPage){
-       return res.articles(nextP)
+       return res.articles(nextP,subred)
     }
     return fetchRed.getArticle(res.articles)
 }
 
 function getArticle(res){
+  comments = res[1].data.children
   return res.reduce(function(accu,el,indx){
     if(indx === 0){
       accu.push(el.data.children[0].data)
@@ -42,6 +43,7 @@ function getArticle(res){
     return accu
   },[])
 }
+
 
 function displayArticle(res){
   if(res[0].post_hint){
@@ -73,9 +75,28 @@ function askWhatNowAndDo(res){
   .then(function(res){
     if(res.next == startOver){
       res.next()
+    }else if(res.next == loadComments){
+      res.next(comments,0)
     }else{
       res.next(articleList,nextP)
     }
+    return res
+  })
+  .then(function(res){
+    inquirer.prompt({
+      type: 'list',
+      name: 'next',
+      message: 'What now?',
+      choices: whatNextwithoutload
+    })
+    .then(function(res){
+      if(res.next == startOver){
+        res.next()
+      }else{
+        res.next(articleList,nextP)
+      }
+      return res
+    })
   })
 }
 
@@ -95,15 +116,68 @@ function askWhatArticleToReadAndWhatDoNext(res){
 }
 
 
-//RENEGADE FUNCTIONS////////////////////////////////////////////
-// function addNewlines(str) {
-//   var result = '';
-//   while (str.length > 0) {
-//     result += str.substring(0, 200) + '\n';
-//     str = str.substring(200);
-//   }
-//   return result;
-// }
+//Comment Section////////////////////////////////////////////
+
+function reduceComments(arr){
+  return arr.reduce(function(accu,el,indx){
+    if(el.data.replies === ''){
+      accu.push(el.data.author+": "+el.data.body)
+    } else{
+      accu.push(el.data.author+": "+el.data.body, reduceComments(el.data.replies.data.children))
+    }
+    return accu
+  },[])
+}
+
+function loadComments(comments,level){
+  commentsArr = comments.reduce(function(accu,el,indx){
+    if(el.data.replies === ''){
+      accu.push(el.data.author+": "+el.data.body)
+    } else{
+      accu.push(el.data.author+": "+el.data.body,reduceComments(el.data.replies.data.children))
+    }
+    return accu
+  },[])
+  printComments(commentsArr, 0)
+  // console.dir(commentsArr, { depth: null })
+}
+
+function returnSpaceCount(count) {
+  var spaces = "";
+  for (var i=0; i<count; i++) {
+    spaces += "   |";
+  }
+  return spaces;
+}
+
+function printComments(array, count){
+  array.forEach(function(el,indx,arr){
+    if(typeof el === 'string'){
+      console.log(returnSpaceCount(count) + formatToXColsforCom(el,count))
+      console.log("-----------------------------------------------------------------------------------------------------------------------")
+    } else {
+      printComments(el, count+1)
+    }
+  })
+}
+
+function formatToXColsforCom(text,counts) {
+  var count = 0;
+  var newStr = ""
+  for(var i=0; i<text.length; i++, count++) {
+    if(text.charAt(i) === "\n" ) {
+      count = 0;
+    }
+    if(count === 118) {
+      newStr += '-\n'+returnSpaceCount(counts);
+      count = 0;
+    }
+    newStr += text.charAt(i)
+  }
+  return newStr
+}
+
+/////////////////////////////////////////////
 
 function formatToXCols(text) {
   var count = 0;
@@ -125,12 +199,14 @@ function formatToXCols(text) {
 function makeTopicList(subred){
   var articleList;
   var nextP;
+  var beforeP;
+  var comments;
   fetchRed.getSubreddit(subred)
   .then(getTitlesAndPermalinks)
   .then(pushArticlesToList)
   .then(askWhatArticleToReadAndWhatDoNext)
   .catch(function(err){
-    console.log('Error 55', err)
+    console.log(err,'Error 55')
     startOver()
   })
 }
@@ -143,20 +219,21 @@ function makeTopicListforHome(){
   .then(pushArticlesToList)
   .then(askWhatArticleToReadAndWhatDoNext)
   .catch(function(err){
-    console.log('Error 55', err)
+    console.log(err,'Error 55')
     startOver()
   })
 }
 
-function nextPage(pageid){
+function nextPage(pageid,subreddit){
   var articleList;
   var nextP;
-  fetchRed.nextPage(pageid)
+  var beforeP;
+  fetchRed.nextPage(pageid,subreddit)
   .then(getTitlesAndPermalinks)
   .then(pushArticlesToList)
   .then(askWhatArticleToReadAndWhatDoNext)
   .catch(function(err){
-    console.log('Error 55', err)
+    console.log(err,'Error 55')
     startOver()
   })
 }
@@ -176,7 +253,7 @@ function goBack(articlArray,pageid){
   .then(displayArticle)
   .then(askWhatNowAndDo)
   .catch(function(err){
-    console.log('Error 55', err)
+    console.log(err,'Error 55')
     startOver()
   })
 }
@@ -184,6 +261,7 @@ function goBack(articlArray,pageid){
 
 function makeSubredditInq(){
   var redditList;
+  var subred;
   fetchRed.getSubreddits()
   .then(function(res){
     redditList =res.data.children.reduce(function(accu,el,indx){
@@ -198,12 +276,26 @@ function makeSubredditInq(){
       name: 'returnList',
       message: 'Which subreddit do you want to open?',
       choices: redditList
-    }).then(
-      function(res) {
-        makeTopicList(res.returnList);
-      }
-    );
+    })
+    .then(function(res){
+      subred = res.returnList
+      return res
+    })
+    .then(function(res){
+      inquirer.prompt({
+        type: 'list',
+        name: 'returnList',
+        message: 'Which subreddit do you want to open?',
+        choices: redditList
+      })
+      .then(function(res){
+          makeTopicList(subred,res.returnList);
+      })
+    })
   })
+}
+.then(function(res) {
+  makeTopicList(res.returnList);
 }
 
 function askForCustomSub(){
@@ -228,20 +320,98 @@ function favList(){
     message: 'Which one will it be today?',
     choices: favredditlist
   })
-  .then(
-    function(res) {
+  .then(function(res){
       makeTopicList(res.fav)
+  });
+}
+/////////////////////////////////////////////////////////////////////////////////////////
+
+///FS FUNCTIONS/////////////////////////////////////////////////////////////////////////
+function remvFavReddits(){
+  var profile = fs.readFileSync('./reddit_profiles.json')
+  var profile = JSON.parse(profile)
+  inquirer.prompt({
+    type: 'checkbox',
+    name: 'remv',
+    message: 'What do you want to remove?',
+    choices: profile
+  })
+  .then(function(res) {
+      profile = profile.filter(function(el) {
+        return res.remv.indexOf(el.value) === -1;
+      });
+      return res
     }
-  );
+  )
+  .then(function(res){
+    for(var i = 0;i<res.remv.length;i++){
+      console.log(res.remv[i]+ ' has been removed')
+    }
+    fs.writeFileSync("./reddit_profiles.json", JSON.stringify(profile))
+    return res
+  })
+  .then(function(res){
+    console.log('Done!')
+    inquirer.prompt({
+      type: 'list',
+      name: 'next',
+      message: 'What do you want to do?',
+      choices: whatNextforMiniDB
+    })
+    .then(function(res) {
+      res.next()
+    })
+  })
 }
 
-
-////////////////////////////////////////////////////////////////
-
-
+function addToFavs(){
+  var profile = fs.readFileSync('./reddit_profiles.json')
+  var profile = JSON.parse(profile)
+  inquirer.prompt({
+    type: 'input',
+    name: 'add',
+    message: 'Which subreddit would you like to add?(Caps sensitive & ex. /r/GlobalOffensive/):'
+  })
+  .then(function(res) {
+    profile.push({name: res.add,value: res.add})
+    return res
+  })
+  .then(function(res){
+    console.log(res.add+ ' has been added')
+    fs.writeFileSync("./reddit_profiles.json", JSON.stringify(profile))
+    return res
+  })
+  .then(function(res){
+    console.log('Done!')
+    inquirer.prompt({
+      type: 'list',
+      name: 'next',
+      message: 'What do you want to do?',
+      choices: whatNextforMiniDB
+    })
+    .then(function(res) {
+      res.next()
+    })
+  })
+}
 
 //WHAT NEXT MENUE///////////////////////////////////////////////////////////////////////
+var whatNextforMiniDB =[
+  {name: 'Add a subreddit', value: addToFavs},
+  {name: 'Remove a subreddit', value: remvFavReddits},
+  new inquirer.Separator(),
+  {name: 'Go back to Start Menu', value: startOver}
+]
+
+var whatNextwithoutload = [
+  {name: 'Go back', value: goBack},
+  new inquirer.Separator(),
+  {name: 'Start Over', value: startOver}
+]
+
 var whatNext = [
+  {name: 'Load Comments', value: loadComments},
+  new inquirer.Separator(),
   {name: 'Go back', value: goBack},
   new inquirer.Separator(),
   {name: 'Start Over', value: startOver}
@@ -251,10 +421,11 @@ var whatNext = [
 var start = [
   {name: 'Show homepage', value: makeTopicListforHome},
   {name: 'Custom subreddit', value: askForCustomSub},
-  {name: 'List subreddits', value: makeSubredditInq},
+  {name: 'List populair subreddits', value: makeSubredditInq},
   {name: 'My subredits', value: favList},
-  {name: 'Add to my subreddits', value: edit.add},
-  {name: 'Remove from subreddits', value: edit.remove}
+  new inquirer.Separator(),
+  {name: 'Add to my subreddits', value: addToFavs},
+  {name: 'Remove from my subreddits', value: remvFavReddits}
 ];
 
 function startOver(){
