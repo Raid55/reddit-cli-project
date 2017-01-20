@@ -1,6 +1,8 @@
 var inquirer = require('inquirer');
 var fetchRed = require('./lib/reddit.js');
 var Table = require('cli-table');
+var fs = require('fs');
+var edit = require('./redditFSedditor.js')
 
 /*
 .catch(function(err){
@@ -44,7 +46,7 @@ function getArticle(res){
 function displayArticle(res){
   if(res[0].post_hint){
     console.log(`=============================================================================`)
-    console.log('it was an image, images arent suported yet... or a link which is: ')
+    console.log('it was an image/link, images/links arent suported yet... The link was: ')
     console.log(res[0].url)
     console.log(`=============================================================================`)
   }else{
@@ -57,7 +59,6 @@ function displayArticle(res){
     table.push(
         [res[0].author+' / '+res[0].score, formattedText]
     );
-    console.log(res[0].selftext)
     console.log(table.toString());
   }
 }
@@ -112,7 +113,7 @@ function formatToXCols(text) {
       count = 0;
     }
     if(count === 118) {
-      newStr += '\n';
+      newStr += '-\n';
       count = 0;
     }
     newStr += text.charAt(i)
@@ -213,17 +214,14 @@ function askForCustomSub(){
   })
   .then(
     function(res) {
-      console.log(res.response)
       makeTopicList(res.response)
     }
   );
 }
 
 function favList(){
-  var favredditlist = [
-    {name: 'Global Offensive', value: '/r/GlobalOffensive/'},
-    {name: 'BROKEN', value: 'lol'},
-  ];
+  var favredditlist = fs.readFileSync('./reddit_profiles.json')
+  var favredditlist = JSON.parse(favredditlist)
   inquirer.prompt({
     type: 'list',
     name: 'fav',
@@ -232,7 +230,6 @@ function favList(){
   })
   .then(
     function(res) {
-      console.log(res.fav)
       makeTopicList(res.fav)
     }
   );
@@ -241,11 +238,7 @@ function favList(){
 
 ////////////////////////////////////////////////////////////////
 
-//
-// fetchRed.getHomepage().then(function(res){
-//   console.log(res.data.children[0])
-// })
-// var redditList = makeSubredditInq()
+
 
 //WHAT NEXT MENUE///////////////////////////////////////////////////////////////////////
 var whatNext = [
@@ -259,7 +252,9 @@ var start = [
   {name: 'Show homepage', value: makeTopicListforHome},
   {name: 'Custom subreddit', value: askForCustomSub},
   {name: 'List subreddits', value: makeSubredditInq},
-  {name: 'My subredits', value: favList}
+  {name: 'My subredits', value: favList},
+  {name: 'Add to my subreddits', value: edit.add},
+  {name: 'Remove from subreddits', value: edit.remove}
 ];
 
 function startOver(){
