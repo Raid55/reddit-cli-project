@@ -22,7 +22,7 @@ function getTitlesAndPermalinks(res){
 
 function pushArticlesToList(res){
   articleList.push(new inquirer.Separator())
-  articleList.push({name: 'Next Page' ,value: nextPage})
+  articleList.push({name: 'Next Page**OUT OF ORDER**' ,value: nextPage})
   articleList.push(new inquirer.Separator())
   return res
 }
@@ -183,7 +183,7 @@ function formatToXCols(text) {
   var count = 0;
   var newStr = ""
   for(var i=0; i<text.length; i++, count++) {
-    if(text.charAt(i) === "\n" ) {
+    if(text.charAt(i) === "\n") {
       count = 0;
     }
     if(count === 118) {
@@ -196,12 +196,12 @@ function formatToXCols(text) {
 }
 //////////////////////////////////////////////////////////////////////
 
-function makeTopicList(subred){
+function makeTopicList(subred,sort){
   var articleList;
   var nextP;
   var beforeP;
   var comments;
-  fetchRed.getSubreddit(subred)
+  fetchRed.getSortedSubreddit(subred,sort)
   .then(getTitlesAndPermalinks)
   .then(pushArticlesToList)
   .then(askWhatArticleToReadAndWhatDoNext)
@@ -211,10 +211,10 @@ function makeTopicList(subred){
   })
 }
 
-function makeTopicListforHome(){
+function makeTopicListforHome(sort){
   var articleList;
   var nextP;
-  fetchRed.getHomepage()
+  fetchRed.getSortedHomepage(sort)
   .then(getTitlesAndPermalinks)
   .then(pushArticlesToList)
   .then(askWhatArticleToReadAndWhatDoNext)
@@ -284,36 +284,46 @@ function makeSubredditInq(){
     .then(function(res){
       inquirer.prompt({
         type: 'list',
-        name: 'returnList',
-        message: 'Which subreddit do you want to open?',
-        choices: redditList
+        name: 'sort',
+        message: 'How should I sort them?',
+        choices: sortList
       })
       .then(function(res){
-          makeTopicList(subred,res.returnList);
+          makeTopicList(subred,res.sort);
       })
     })
   })
 }
-.then(function(res) {
-  makeTopicList(res.returnList);
-}
+
 
 function askForCustomSub(){
+  var subred;
   inquirer.prompt({
     type: 'input',
     name: 'response',
     message: 'Which Subreddit would you like to browse?(Cap sensitive/in this format: /r/whatever_sub/)',
   })
-  .then(
-    function(res) {
-      makeTopicList(res.response)
-    }
-  );
+  .then(function(res){
+    subred = res.response
+    return res
+  })
+  .then(function(res){
+    inquirer.prompt({
+      type: 'list',
+      name: 'sort',
+      message: 'How should I sort them?',
+      choices: sortList
+    })
+    .then(function(res){
+        makeTopicList(subred,res.sort);
+    })
+  })
 }
 
 function favList(){
   var favredditlist = fs.readFileSync('./reddit_profiles.json')
   var favredditlist = JSON.parse(favredditlist)
+  var subred;
   inquirer.prompt({
     type: 'list',
     name: 'fav',
@@ -321,8 +331,20 @@ function favList(){
     choices: favredditlist
   })
   .then(function(res){
-      makeTopicList(res.fav)
-  });
+    subred = res.fav
+    return res
+  })
+  .then(function(res){
+    inquirer.prompt({
+      type: 'list',
+      name: 'sort',
+      message: 'How should I sort them?',
+      choices: sortList
+    })
+    .then(function(res){
+        makeTopicList(subred,res.sort);
+    })
+  })
 }
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -396,6 +418,14 @@ function addToFavs(){
 }
 
 //WHAT NEXT MENUE///////////////////////////////////////////////////////////////////////
+var sortList =[
+  {name: 'Hot', value: "hot"},
+  {name: 'New', value: "new"},
+  {name: 'Rising', value: "rising"},
+  {name: 'Controversial', value: "controversial"},
+  {name: 'Top', value: "top"},
+]
+
 var whatNextforMiniDB =[
   {name: 'Add a subreddit', value: addToFavs},
   {name: 'Remove a subreddit', value: remvFavReddits},
@@ -437,7 +467,19 @@ function startOver(){
   })
   .then(
     function(res) {
+      if(res.start == makeTopicListforHome){
+        inquirer.prompt({
+          type: 'list',
+          name: 'sort',
+          message: 'How should I sort them?',
+          choices: sortList
+        })
+        .then(function(res){
+            makeTopicListforHome(res.sort);
+        })
+      }else{
       res.start()
+      }
     }
   );
 }
