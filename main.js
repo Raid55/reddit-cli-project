@@ -22,15 +22,15 @@ function getTitlesAndPermalinks(res){
 
 function pushArticlesToList(res){
   articleList.push(new inquirer.Separator())
-  articleList.push({name: 'Next Page**OUT OF ORDER**' ,value: nextPage})
+  articleList.push({name: 'Next Page**OUT OF ORDER**' ,value: "nextPage"})
   articleList.push(new inquirer.Separator())
   return res
 }
 
 function checkIfArticleAndPassAlong(res) {
-    if(res.articles == nextPage){
-       return res.articles(nextP,subred)
-    }
+    // if(res.articles == nextPage){
+    //    return res.articles(nextP,subred)
+    // }
     return fetchRed.getArticle(res.articles)
 }
 
@@ -76,7 +76,7 @@ function askWhatNowAndDo(res){
     if(res.next == startOver){
       res.next()
     }else if(res.next == loadComments){
-      res.next(comments,0)
+      res.next(comments)
     }else{
       res.next(articleList,nextP)
     }
@@ -95,8 +95,10 @@ function askWhatNowAndDo(res){
       }else{
         res.next(articleList,nextP)
       }
-      return res
     })
+  })
+  .catch(function(err){
+    console.log(err,"error FiddyFive")
   })
 }
 
@@ -113,6 +115,9 @@ function askWhatArticleToReadAndWhatDoNext(res){
   .then(getArticle)
   .then(displayArticle)
   .then(askWhatNowAndDo)
+  .catch(function(err){
+    console.log(err,"error FiddyFive")
+  })
 }
 
 
@@ -129,7 +134,7 @@ function reduceComments(arr){
   },[])
 }
 
-function loadComments(comments,level){
+function loadComments(comments){
   commentsArr = comments.reduce(function(accu,el,indx){
     if(el.data.replies === ''){
       accu.push(el.data.author+": "+el.data.body)
@@ -224,19 +229,19 @@ function makeTopicListforHome(sort){
   })
 }
 
-function nextPage(pageid,subreddit){
-  var articleList;
-  var nextP;
-  var beforeP;
-  fetchRed.nextPage(pageid,subreddit)
-  .then(getTitlesAndPermalinks)
-  .then(pushArticlesToList)
-  .then(askWhatArticleToReadAndWhatDoNext)
-  .catch(function(err){
-    console.log(err,'Error 55')
-    startOver()
-  })
-}
+// function nextPage(pageid,subreddit){
+//   var articleList;
+//   var nextP;
+//   var beforeP;
+//   fetchRed.nextPage(pageid,subreddit)
+//   .then(getTitlesAndPermalinks)
+//   .then(pushArticlesToList)
+//   .then(askWhatArticleToReadAndWhatDoNext)
+//   .catch(function(err){
+//     console.log(err,'Error 55')
+//     startOver()
+//   })
+// }
 
 
 function goBack(articlArray,pageid){
