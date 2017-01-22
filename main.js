@@ -22,7 +22,7 @@ function getTitlesAndPermalinks(res){
 
 function pushArticlesToList(res){
   articleList.push(new inquirer.Separator())
-  articleList.push({name: 'Next Page**OUT OF ORDER**' ,value: "nextPage"})
+  articleList.push({name: 'Next Page**OUT OF ORDER**' ,value: nextPage})
   articleList.push(new inquirer.Separator())
   return res
 }
@@ -99,6 +99,7 @@ function askWhatNowAndDo(res){
   })
   .catch(function(err){
     console.log(err,"error FiddyFive")
+    startOver()
   })
 }
 
@@ -111,12 +112,20 @@ function askWhatArticleToReadAndWhatDoNext(res){
     message: 'Which artile do you wish to read?',
     choices: articleList
   })
+  .then(function(res){
+    if(res.articles == nextPage){
+      return res.articles(nextP,sub)
+    } else {
+      return res
+    }
+  })
   .then(checkIfArticleAndPassAlong)
   .then(getArticle)
   .then(displayArticle)
   .then(askWhatNowAndDo)
   .catch(function(err){
     console.log(err,"error FiddyFive")
+    startOver()
   })
 }
 
@@ -206,6 +215,7 @@ function makeTopicList(subred,sort){
   var nextP;
   var beforeP;
   var comments;
+  var sub = subred;
   fetchRed.getSortedSubreddit(subred,sort)
   .then(getTitlesAndPermalinks)
   .then(pushArticlesToList)
@@ -229,19 +239,19 @@ function makeTopicListforHome(sort){
   })
 }
 
-// function nextPage(pageid,subreddit){
-//   var articleList;
-//   var nextP;
-//   var beforeP;
-//   fetchRed.nextPage(pageid,subreddit)
-//   .then(getTitlesAndPermalinks)
-//   .then(pushArticlesToList)
-//   .then(askWhatArticleToReadAndWhatDoNext)
-//   .catch(function(err){
-//     console.log(err,'Error 55')
-//     startOver()
-//   })
-// }
+function nextPage(pageid,subreddit){
+  var articleList;
+  var nextP;
+  var beforeP;
+  fetchRed.nextPage(pageid,subreddit)
+  .then(getTitlesAndPermalinks)
+  .then(pushArticlesToList)
+  .then(askWhatArticleToReadAndWhatDoNext)
+  .catch(function(err){
+    console.log(err,'Error 55')
+    startOver()
+  })
+}
 
 
 function goBack(articlArray,pageid){
@@ -470,8 +480,7 @@ function startOver(){
     message: 'What do you want to do?',
     choices: start
   })
-  .then(
-    function(res) {
+  .then(function(res) {
       if(res.start == makeTopicListforHome){
         inquirer.prompt({
           type: 'list',
